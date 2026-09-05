@@ -1,11 +1,17 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { UpdateImageDto } from './dto/update-image.dto';
+
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinary: CloudinaryService,
+  ) { }
 
   private slugify(name: string): string {
     return name
@@ -24,15 +30,15 @@ export class ProductsService {
       throw new NotFoundException('Category not found');
     }
 
-    const existingSku = await this.prisma.product.findUnique({
-      where: { sku: dto.sku },
+    const slug = this.slugify(dto.name);
+
+    const existing = await this.prisma.product.findFirst({
+      where: { OR: [{ sku: dto.sku }, { slug }] },
     });
 
-    if (existingSku) {
-      throw new ConflictException('SKU already in use');
+    if (existing) {
+      throw new ConflictException('SKU or product name already in use');
     }
-
-    const slug = this.slugify(dto.name);
 
     return this.prisma.product.create({
       data: {
@@ -46,12 +52,12 @@ export class ProductsService {
         categoryId: dto.categoryId,
         images: dto.images
           ? {
-              create: dto.images.map((img) => ({
-                imageUrl: img.imageUrl,
-                isPrimary: img.isPrimary ?? false,
-                sortOrder: img.sortOrder ?? 0,
-              })),
-            }
+            create: dto.images.map((img) => ({
+              imageUrl: img.imageUrl,
+              isPrimary: img.isPrimary ?? false,
+              sortOrder: img.sortOrder ?? 0,
+            })),
+          }
           : undefined,
       },
       include: { images: true, category: true },
@@ -92,13 +98,22 @@ export class ProductsService {
     }
 
     const { images, ...rest } = dto;
+    const data: Record<string, unknown> = { ...rest };
+
+    if (dto.name) {
+      const newSlug = this.slugify(dto.name);
+      const collision = await this.prisma.product.findFirst({
+        where: { slug: newSlug, NOT: { id } },
+      });
+      if (collision) {
+        throw new ConflictException('Product name already in use');
+      }
+      data.slug = newSlug;
+    }
 
     return this.prisma.product.update({
       where: { id },
-      data: {
-        ...rest,
-        ...(dto.name ? { slug: this.slugify(dto.name) } : {}),
-      },
+      data,
       include: { images: true, category: true },
     });
   }
@@ -107,5 +122,54 @@ export class ProductsService {
     await this.findOne(id);
     await this.prisma.product.delete({ where: { id } });
     return { message: 'Product deleted' };
+  }
+
+  async addImage(productId: string, file: Express.Multer.File) {
+    await this.findOne(productId); // 404 if product doesn't exist
+
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const result = await this.cloudinary.uploadImage(file);
+
+    return this.prisma.productImage.create({
+      data: {
+        productId,
+        imageUrl: result.secure_url,
+      },
+    });
+  }
+
+  async removeImage(productId: string, imageId: string) {
+    await this.findOne(productId); // 404 if product doesn't exist
+
+    const image = await this.prisma.productImage.findUnique({
+      where: { id: imageId },
+    });
+
+    if (!image || image.productId !== productId) {
+      throw new NotFoundException('Image not found for this product');
+    }
+
+    await this.cloudinary.deleteImage(image.imageUrl);
+    await this.prisma.productImage.delete({ where: { id: imageId } });
+
+    return { message: 'Image deleted' };
+  }
+
+    async updateImage(productId: string, imageId: string, dto: UpdateImageDto) {
+    const image = await this.prisma.productImage.findUnique({
+      where: { id: imageId },
+    });
+
+    if (!image || image.productId !== productId) {
+      throw new NotFoundException('Image not found for this product');
+    }
+
+    return this.prisma.productImage.update({
+      where: { id: imageId },
+      data: dto,
+    });
   }
 }
