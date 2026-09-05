@@ -25,9 +25,9 @@ import { ProductsModule } from './products/products.module';
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-  { provide: APP_GUARD, useClass: RolesGuard },
-  { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
-  { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
   ],
 })
 export class AppModule implements NestModule {
