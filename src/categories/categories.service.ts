@@ -5,7 +5,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private slugify(name: string): string {
     return name
@@ -70,8 +70,66 @@ export class CategoriesService {
   async remove(id: string) {
     await this.findOne(id); // throws 404 if missing
 
-    await this.prisma.category.delete({ where: { id } });
+    await this.prisma.category.update({
+      where: { id },
+      data: { isActive: false },
+    });
 
     return { message: 'Category deleted' };
+  }
+
+  // Retrieve all soft-deleted categories
+  async findAllInactive() {
+    return this.prisma.category.findMany({
+      where: { isActive: false },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  // Hard delete ALL soft-deleted categories
+  async removeAllInactive() {
+    const result = await this.prisma.category.deleteMany({
+      where: { isActive: false },
+    });
+
+    return { message: `${result.count} categories permanently deleted` };
+  }
+
+  // Hard delete ONE soft-deleted category by id
+  async removeInactiveById(id: string) {
+    const category = await this.prisma.category.findUnique({ where: { id } });
+
+    if (!category || !category.isActive === false ? false : !category) {
+      // placeholder, fixed below
+    }
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (category.isActive) {
+      throw new ConflictException('Category is still active; soft-delete it before hard-deleting');
+    }
+
+    await this.prisma.category.delete({ where: { id } });
+
+    return { message: 'Category permanently deleted' };
+  }
+
+  async restore(id: string) {
+    const category = await this.prisma.category.findUnique({ where: { id } });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (category.isActive) {
+      throw new ConflictException('Category is already active');
+    }
+
+    return this.prisma.category.update({
+      where: { id },
+      data: { isActive: true },
+    });
   }
 }

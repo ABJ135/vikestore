@@ -7,12 +7,18 @@ import { Public } from '../common/decorators/public.decorator';
 
 @Controller('categories')
 export class CategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(private readonly categoriesService: CategoriesService) { }
 
   @Public()
   @Get()
   findAll() {
     return this.categoriesService.findAll();
+  }
+
+  @Roles('ADMIN', 'EMPLOYEE')
+  @Get('inactive')
+  findAllInactive() {
+    return this.categoriesService.findAllInactive();
   }
 
   @Public()
@@ -34,9 +40,26 @@ export class CategoriesController {
     return this.categoriesService.update(id, dto);
   }
 
-  @Roles('ADMIN')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
+  }
+
+  @Roles('ADMIN')
+  @Delete('inactive/purge')
+  removeAllInactive() {
+    return this.categoriesService.removeAllInactive();
+  }
+
+  @Roles('ADMIN')
+  @Delete('inactive/:id')
+  removeInactiveById(@Param('id') id: string) {
+    return this.categoriesService.removeInactiveById(id);
+  }
+
+  @Roles('ADMIN', 'EMPLOYEE')
+  @Patch('inactive/:id/restore')
+  restore(@Param('id') id: string) {
+    return this.categoriesService.restore(id);
   }
 }

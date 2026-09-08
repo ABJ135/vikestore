@@ -120,8 +120,48 @@ export class ProductsService {
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.prisma.product.delete({ where: { id } });
+
+    await this.prisma.product.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
     return { message: 'Product deleted' };
+  }
+
+  // Retrieve all soft-deleted products
+  async findAllInactive() {
+    return this.prisma.product.findMany({
+      where: { isActive: false },
+      include: { images: true, category: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Hard delete ALL soft-deleted products
+  async removeAllInactive() {
+    const result = await this.prisma.product.deleteMany({
+      where: { isActive: false },
+    });
+
+    return { message: `${result.count} products permanently deleted` };
+  }
+
+  // Hard delete ONE soft-deleted product by id
+  async removeInactiveById(id: string) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    if (product.isActive) {
+      throw new ConflictException('Product is still active; soft-delete it before hard-deleting');
+    }
+
+    await this.prisma.product.delete({ where: { id } });
+
+    return { message: 'Product permanently deleted' };
   }
 
   async addImage(productId: string, file: Express.Multer.File) {
@@ -158,7 +198,7 @@ export class ProductsService {
     return { message: 'Image deleted' };
   }
 
-    async updateImage(productId: string, imageId: string, dto: UpdateImageDto) {
+  async updateImage(productId: string, imageId: string, dto: UpdateImageDto) {
     const image = await this.prisma.productImage.findUnique({
       where: { id: imageId },
     });
@@ -170,6 +210,23 @@ export class ProductsService {
     return this.prisma.productImage.update({
       where: { id: imageId },
       data: dto,
+    });
+  }
+
+  async restore(id: string) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    if (product.isActive) {
+      throw new ConflictException('Product is already active');
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: { isActive: true },
     });
   }
 }
