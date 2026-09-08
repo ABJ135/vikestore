@@ -8,6 +8,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import type { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -50,6 +52,20 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   loginAdmin(@Body() dto: LoginDto) {
     return this.authService.loginAdmin(dto);
+  }
+
+  @Public()
+  @Post('admin/forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotAdminPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotAdminPassword(dto);
+  }
+
+  @Public()
+  @Post('admin/reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetAdminPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetAdminPassword(dto);
   }
 
   @Public()

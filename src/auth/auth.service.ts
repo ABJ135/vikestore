@@ -1,12 +1,15 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtModuleOptions } from '@nestjs/jwt';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 type ExpiresIn = NonNullable<JwtModuleOptions['signOptions']>['expiresIn'];
 
@@ -16,6 +19,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) { }
 
   async registerCustomer(dto: RegisterCustomerDto) {
@@ -328,6 +332,89 @@ export class AuthService {
     await this.prisma.admin.delete({ where: { id: targetId } });
 
     return { message: 'Admin deleted' };
+  }
+
+  /**
+   * Step 1 – Forgot password
+   * Generates an OTP, stores its hash + expiry on the Admin record, and
+   * emails the plain-text OTP to the admin's address.
+   * Always returns a generic message to prevent user enumeration.
+   */
+  async forgotAdminPassword(dto: ForgotPasswordDto) {
+    const admin = await this.prisma.admin.findUnique({
+      where: { email: dto.email },
+    });
+
+    // Always respond generically – don't reveal whether the email exists
+    if (!admin || !admin.isActive) {
+      return { message: 'If that email is registered, an OTP has been sent.' };
+    }
+
+    const otp = this.mailService.generateOtp(6);
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // +5 minutes
+
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: { otpCode: otpHash, otpExpiresAt, otpUsed: false },
+    });
+
+    await this.mailService.sendOtpEmail(admin.email, otp, {
+      name: admin.name,
+      expiryMinutes: 5,
+    });
+
+    return { message: 'If that email is registered, an OTP has been sent.' };
+  }
+
+  /**
+   * Step 2 – Reset password
+   * Validates the OTP (must match, not expired, not already used),
+   * hashes the new password, saves it, and invalidates the OTP.
+   */
+  async resetAdminPassword(dto: ResetPasswordDto) {
+    const admin = await this.prisma.admin.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!admin || !admin.isActive) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Validate OTP presence
+    if (!admin.otpCode || !admin.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Check reuse
+    if (admin.otpUsed) {
+      throw new BadRequestException('OTP has already been used');
+    }
+
+    // Check expiry
+    if (admin.otpExpiresAt < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    // Check hash match
+    const incomingHash = crypto.createHash('sha256').update(dto.otp).digest('hex');
+    if (incomingHash !== admin.otpCode) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        password: hashedPassword,
+        otpUsed: true,     // prevent OTP reuse
+        otpCode: null,     // clear stored hash
+        otpExpiresAt: null,
+      },
+    });
+
+    return { message: 'Password reset successfully' };
   }
 
 }

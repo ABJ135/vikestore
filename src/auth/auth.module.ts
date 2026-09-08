@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { MailModule } from '../mail/mail.module';
 
 type ExpiresIn = NonNullable<JwtModuleOptions['signOptions']>['expiresIn'];
 
@@ -12,6 +13,7 @@ type ExpiresIn = NonNullable<JwtModuleOptions['signOptions']>['expiresIn'];
       secret: process.env.JWT_ACCESS_SECRET,
       signOptions: { expiresIn: (process.env.JWT_ACCESS_EXPIRES_IN ?? '15m') as ExpiresIn },
     }),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
