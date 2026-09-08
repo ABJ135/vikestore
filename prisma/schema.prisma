@@ -13,14 +13,19 @@ enum AdminRole {
 }
 
 model Admin {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      AdminRole
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  password     String
+  role         AdminRole
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // OTP verification
+  otpCode      String?   // SHA-256 hash of the OTP
+  otpExpiresAt DateTime? // Set to now() + 5 minutes on generation
+  otpUsed      Boolean   @default(false) // true once the OTP has been consumed
 
   refreshTokens AdminRefreshToken[]
 }
@@ -36,14 +41,19 @@ model AdminRefreshToken {
 }
 
 model Customer {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  phone     String?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  password     String
+  phone        String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // OTP verification
+  otpCode      String?   // SHA-256 hash of the OTP
+  otpExpiresAt DateTime? // Set to now() + 5 minutes on generation
+  otpUsed      Boolean   @default(false) // true once the OTP has been consumed
 
   refreshTokens CustomerRefreshToken[]
 }

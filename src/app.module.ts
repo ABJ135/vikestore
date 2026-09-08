@@ -13,6 +13,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     CategoriesModule,
     ProductsModule,
     CloudinaryModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [
