@@ -12,15 +12,16 @@ const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
+  extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.(t|j)s$': [
       'ts-jest',
       {
+        useESM: true,
         tsconfig: {
-          module: 'commonjs',
-          moduleResolution: 'node',
+          module: 'ESNext',
+          moduleResolution: 'bundler',
           resolvePackageJsonExports: false,
-          ignoreDeprecations: '6.0',
         },
       },
     ],
@@ -29,6 +30,7 @@ const config: Config = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
   },
+  transformIgnorePatterns: [],
   collectCoverageFrom: [
     'src/**/*.(t|j)s',
     'libs/**/*.(t|j)s',
@@ -38,4 +40,4 @@ const config: Config = {
   testEnvironment: 'node',
 };
 
-export default config;
+export default config;

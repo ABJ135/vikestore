@@ -6,62 +6,67 @@ import { OrderStatus } from '../generated/prisma/enums';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(customerId: string, dto: CreateOrderDto) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Order must contain at least one item');
     }
 
-    let totalCents = 0;
-    const orderItemsData = [];
+    // Pre-validate all products before entering the transaction
+    const products = await Promise.all(
+      dto.items.map(async (item) => {
+        const product = await this.prisma.product.findUnique({
+          where: { id: item.productId },
+        });
+        if (!product) {
+          throw new NotFoundException(`Product with ID ${item.productId} not found`);
+        }
+        if (product.stock < item.quantity) {
+          throw new BadRequestException(`Insufficient stock for product ${product.name}`);
+        }
+        return { product, quantity: item.quantity };
+      }),
+    );
 
-    // Verify stock and calculate total before committing
-    for (const item of dto.items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
-      });
+    // Execute stock deduction + order creation atomically
+    return this.prisma.$transaction(async (tx) => {
+      let totalCents = 0;
+      const orderItemsData = [];
 
-      if (!product) {
-        throw new NotFoundException(`Product with ID ${item.productId} not found`);
+      for (const { product, quantity } of products) {
+        const itemTotal = product.priceCents * quantity;
+        totalCents += itemTotal;
+
+        orderItemsData.push({
+          productId: product.id,
+          quantity,
+          priceCents: product.priceCents,
+        });
+
+        await tx.product.update({
+          where: { id: product.id },
+          data: { stock: { decrement: quantity } },
+        });
       }
 
-      if (product.stock < item.quantity) {
-        throw new BadRequestException(`Insufficient stock for product ${product.name}`);
-      }
-
-      const itemTotal = product.priceCents * item.quantity;
-      totalCents += itemTotal;
-
-      orderItemsData.push({
-        productId: product.id,
-        quantity: item.quantity,
-        priceCents: product.priceCents,
-      });
-
-      // Deduct stock immediately (for robust e-commerce, this might be handled via a transaction or message queue)
-      await this.prisma.product.update({
-        where: { id: product.id },
-        data: { stock: product.stock - item.quantity },
-      });
-    }
-
-    return this.prisma.order.create({
-      data: {
-        customerId,
-        totalCents,
-        status: OrderStatus.PENDING,
-        items: {
-          create: orderItemsData,
-        },
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
+      return tx.order.create({
+        data: {
+          customerId,
+          totalCents,
+          status: OrderStatus.PENDING,
+          items: {
+            create: orderItemsData,
           },
         },
-      },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
     });
   }
 

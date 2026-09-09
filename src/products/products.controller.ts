@@ -23,6 +23,24 @@ export class ProductsController {
     return this.productsService.findAllInactive();
   }
 
+  @Roles('ADMIN')
+  @Delete('inactive/purge')
+  removeAllInactive() {
+    return this.productsService.removeAllInactive();
+  }
+
+  @Roles('ADMIN')
+  @Delete('inactive/:id')
+  removeInactiveById(@Param('id') id: string) {
+    return this.productsService.removeInactiveById(id);
+  }
+
+  @Roles('ADMIN', 'EMPLOYEE')
+  @Patch('inactive/:id/restore')
+  restore(@Param('id') id: string) {
+    return this.productsService.restore(id);
+  }
+
   @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -46,18 +64,6 @@ export class ProductsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
-  }
-
-  @Roles('ADMIN')
-  @Delete('inactive/purge')
-  removeAllInactive() {
-    return this.productsService.removeAllInactive();
-  }
-
-  @Roles('ADMIN')
-  @Delete('inactive/:id')
-  removeInactiveById(@Param('id') id: string) {
-    return this.productsService.removeInactiveById(id);
   }
 
   @Roles('ADMIN', 'EMPLOYEE')
@@ -89,10 +95,4 @@ export class ProductsController {
   ) {
     return this.productsService.removeImage(productId, imageId);
   }
-
-  @Roles('ADMIN', 'EMPLOYEE')
-  @Patch('inactive/:id/restore')
-  restore(@Param('id') id: string) {
-    return this.productsService.restore(id);
-  }
-}
+}
