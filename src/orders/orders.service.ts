@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderStatus } from '../generated/prisma/enums';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) { }
 
   async create(customerId: string, dto: CreateOrderDto) {
     if (!dto.items || dto.items.length === 0) {
@@ -30,7 +34,7 @@ export class OrdersService {
     );
 
     // Execute stock deduction + order creation atomically
-    return this.prisma.$transaction(async (tx) => {
+    const newOrder = await this.prisma.$transaction(async (tx) => {
       let totalCents = 0;
       const orderItemsData = [];
 
@@ -60,6 +64,9 @@ export class OrdersService {
           },
         },
         include: {
+          customer: {
+            select: { id: true, name: true, email: true },
+          },
           items: {
             include: {
               product: true,
@@ -68,6 +75,18 @@ export class OrdersService {
         },
       });
     });
+
+    // Send New Order alert email to staff
+    this.mailService.sendNewOrderAlert(newOrder);
+
+    // Check low stock (< 10 units) for all purchased items
+    for (const item of newOrder.items) {
+      if (item.product && item.product.stock < 10) {
+        this.mailService.sendLowStockAlert(item.product);
+      }
+    }
+
+    return newOrder;
   }
 
   private enrichOrderWithTracking<T extends Record<string, any>>(order: T): T & { trackingUrl: string | null } {

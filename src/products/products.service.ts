@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { MailService } from '../mail/mail.service';
 import { UpdateImageDto } from './dto/update-image.dto';
 
 
@@ -11,6 +12,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
+    private readonly mailService: MailService,
   ) { }
 
   private slugify(name: string): string {
@@ -40,7 +42,7 @@ export class ProductsService {
       throw new ConflictException('SKU or product name already in use');
     }
 
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         sku: dto.sku,
         name: dto.name,
@@ -62,6 +64,12 @@ export class ProductsService {
       },
       include: { images: true, category: true },
     });
+
+    if (product.stock < 10) {
+      this.mailService.sendLowStockAlert(product);
+    }
+
+    return product;
   }
 
   async findAll() {
@@ -111,11 +119,17 @@ export class ProductsService {
       data.slug = newSlug;
     }
 
-    return this.prisma.product.update({
+    const updatedProduct = await this.prisma.product.update({
       where: { id },
       data,
       include: { images: true, category: true },
     });
+
+    if (updatedProduct.stock < 10) {
+      this.mailService.sendLowStockAlert(updatedProduct);
+    }
+
+    return updatedProduct;
   }
 
   async remove(id: string) {

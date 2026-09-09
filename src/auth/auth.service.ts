@@ -494,4 +494,60 @@ export class AuthService {
 
     return { message: 'Password reset successfully' };
   }
+
+  async getAdminProfile(adminId: string) {
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        notifyLowStock: true,
+        notifyNewOrder: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin not found');
+    }
+
+    return admin;
+  }
+
+  async updateAdminPreferences(adminId: string, dto: import('./dto/update-preferences.dto').UpdatePreferencesDto) {
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin not found');
+    }
+
+    const data: { notifyLowStock?: boolean; notifyNewOrder?: boolean } = {};
+    if (dto.notifyLowStock !== undefined) {
+      data.notifyLowStock = dto.notifyLowStock;
+    }
+    if (dto.notifyNewOrder !== undefined) {
+      data.notifyNewOrder = dto.notifyNewOrder;
+    }
+
+    const updated = await this.prisma.admin.update({
+      where: { id: adminId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        notifyLowStock: true,
+        notifyNewOrder: true,
+      },
+    });
+
+    return updated;
+  }
 }

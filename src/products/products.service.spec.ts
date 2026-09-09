@@ -4,11 +4,13 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { MailService } from '../mail/mail.service';
 
 describe('ProductsService', () => {
   let service: ProductsService;
   let prisma: any;
   let cloudinary: { uploadImage: jest.Mock; deleteImage: jest.Mock };
+  let mailService: { sendLowStockAlert: jest.Mock; sendNewOrderAlert: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -35,11 +37,17 @@ describe('ProductsService', () => {
       deleteImage: jest.fn(),
     };
 
+    mailService = {
+      sendLowStockAlert: jest.fn(),
+      sendNewOrderAlert: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductsService,
         { provide: PrismaService, useValue: prisma },
         { provide: CloudinaryService, useValue: cloudinary },
+        { provide: MailService, useValue: mailService },
       ],
     }).compile();
 

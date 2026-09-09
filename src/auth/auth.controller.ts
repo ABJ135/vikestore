@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { LoginDto } from './dto/login.dto';
@@ -10,6 +10,7 @@ import type { JwtPayload } from './strategies/jwt.strategy';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -112,5 +113,19 @@ export class AuthController {
   @Delete('admin/employees/:id')
   deleteAdmin(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.authService.deleteAdmin(id, user.sub);
+  }
+
+  @Get('admin/me')
+  getAdminProfile(@CurrentUser() user: JwtPayload) {
+    return this.authService.getAdminProfile(user.sub);
+  }
+
+  @Patch('admin/preferences')
+  @HttpCode(HttpStatus.OK)
+  updateAdminPreferences(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    return this.authService.updateAdminPreferences(user.sub, dto);
   }
 }

@@ -13,14 +13,16 @@ enum AdminRole {
 }
 
 model Admin {
-  id           String    @id @default(uuid())
-  name         String
-  email        String    @unique
-  password     String
-  role         AdminRole
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  name           String
+  email          String    @unique
+  password       String
+  role           AdminRole
+  isActive       Boolean   @default(true)
+  notifyLowStock Boolean   @default(true)
+  notifyNewOrder Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // OTP verification
   otpCode      String?   // SHA-256 hash of the OTP
