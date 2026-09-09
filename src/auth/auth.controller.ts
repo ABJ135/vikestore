@@ -41,6 +41,20 @@ export class AuthController {
     return this.authService.refreshCustomerTokens(dto.refreshToken);
   }
 
+  @Public()
+  @Post('customer/forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotCustomerPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotCustomerPassword(dto);
+  }
+
+  @Public()
+  @Post('customer/reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetCustomerPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetCustomerPassword(dto);
+  }
+
   @Post('customer/logout')
   @HttpCode(HttpStatus.OK)
   logoutCustomer(@Body() dto: RefreshTokenDto) {

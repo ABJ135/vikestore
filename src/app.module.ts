@@ -14,6 +14,9 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { MailModule } from './mail/mail.module';
+import { OrdersModule } from './orders/orders.module';
+import { CustomersModule } from './customers/customers.module';
+import { ShippingPartnersModule } from './shipping-partners/shipping-partners.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { MailModule } from './mail/mail.module';
     ProductsModule,
     CloudinaryModule,
     MailModule,
+    OrdersModule,
+    CustomersModule,
+    ShippingPartnersModule,
   ],
   controllers: [AppController],
   providers: [

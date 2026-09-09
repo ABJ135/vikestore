@@ -56,6 +56,7 @@ model Customer {
   otpUsed      Boolean   @default(false) // true once the OTP has been consumed
 
   refreshTokens CustomerRefreshToken[]
+  orders        Order[]
 }
 
 model CustomerRefreshToken {
@@ -98,6 +99,7 @@ model Product {
   category           Category  @relation(fields: [categoryId], references: [id])
 
   images             ProductImage[]
+  orderItems         OrderItem[]
 }
 
 model ProductImage {
@@ -107,5 +109,59 @@ model ProductImage {
   imageUrl   String
   isPrimary  Boolean  @default(false)
   sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model ShippingPartner {
+  id                  String   @id @default(uuid())
+  name                String   @unique // e.g. "Delhivery", "Blue Dart", "FedEx"
+  code                String   @unique // e.g. "DELHIVERY", "BLUEDART", "FEDEX"
+  trackingUrlTemplate String?  // e.g. "https://www.delhivery.com/track/package/{trackingId}"
+  contactPhone        String?
+  contactEmail        String?
+  website             String?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orders              Order[]
+}
+
+model Order {
+  id                String           @id @default(uuid())
+  customerId        String
+  customer          Customer         @relation(fields: [customerId], references: [id])
+  status            OrderStatus      @default(PENDING)
+  totalCents        Int
+
+  // Shipping details
+  shippingPartnerId String?
+  shippingPartner   ShippingPartner? @relation(fields: [shippingPartnerId], references: [id], onDelete: SetNull)
+  trackingId        String?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  priceCents Int      // Price of a single item at the time of purchase
   createdAt  DateTime @default(now())
 }

@@ -417,4 +417,81 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
+  /**
+   * Customer Step 1 – Request OTP for password reset
+   * Generates a 6-digit OTP, stores its SHA-256 hash + expiry on the Customer record,
+   * and emails the plain-text OTP to the customer's address.
+   * Returns a generic message to prevent user enumeration.
+   */
+  async forgotCustomerPassword(dto: ForgotPasswordDto) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!customer || !customer.isActive) {
+      return { message: 'If that email is registered, an OTP has been sent.' };
+    }
+
+    const otp = this.mailService.generateOtp(6);
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: { otpCode: otpHash, otpExpiresAt, otpUsed: false },
+    });
+
+    await this.mailService.sendOtpEmail(customer.email, otp, {
+      name: customer.name,
+      expiryMinutes: 5,
+    });
+
+    return { message: 'If that email is registered, an OTP has been sent.' };
+  }
+
+  /**
+   * Customer Step 2 – Reset password using OTP
+   * Validates the OTP (match, expiry, not used), hashes the new password,
+   * updates the customer record, and clears the OTP.
+   */
+  async resetCustomerPassword(dto: ResetPasswordDto) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!customer || !customer.isActive) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    if (!customer.otpCode || !customer.otpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    if (customer.otpUsed) {
+      throw new BadRequestException('OTP has already been used');
+    }
+
+    if (customer.otpExpiresAt < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const incomingHash = crypto.createHash('sha256').update(dto.otp).digest('hex');
+    if (incomingHash !== customer.otpCode) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        password: hashedPassword,
+        otpUsed: true,
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    return { message: 'Password reset successfully' };
+  }
 }
