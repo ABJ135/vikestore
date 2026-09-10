@@ -13,11 +13,13 @@ import { ShippingPartnersService } from './shipping-partners.service';
 import { CreateShippingPartnerDto } from './dto/create-shipping-partner.dto';
 import { UpdateShippingPartnerDto } from './dto/update-shipping-partner.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('shipping-partners')
 export class ShippingPartnersController {
   constructor(private readonly shippingPartnersService: ShippingPartnersService) {}
 
+  @Public()
   @Get()
   findAll() {
     return this.shippingPartnersService.findAll();
