@@ -3,10 +3,10 @@ import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 @Injectable()
 export class CloudinaryService {
-  private readonly folder: string;
+  private readonly rootFolder: string;
 
   constructor() {
-    this.folder = process.env.CLOUDINARY_FOLDER ?? 'store';
+    this.rootFolder = process.env.CLOUDINARY_FOLDER ?? 'store';
 
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,10 +15,18 @@ export class CloudinaryService {
     });
   }
 
-  async uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+  /**
+   * Upload a file to Cloudinary.
+   * @param file   - The Multer file buffer to upload.
+   * @param folder - Sub-folder under the root folder (defaults to 'products').
+   */
+  async uploadImage(
+    file: Express.Multer.File,
+    folder = 'products',
+  ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: `${this.folder}/products` },
+        { folder: `${this.rootFolder}/${folder}` },
         (error, result) => {
           if (error) return reject(error);
           if (!result) return reject(new Error('Upload failed, no result returned'));
@@ -37,11 +45,17 @@ export class CloudinaryService {
     await cloudinary.uploader.destroy(publicId);
   }
 
+  /**
+   * Extracts the Cloudinary public ID from a secure URL.
+   * Works for any sub-folder under the root folder (e.g. /products/, /logo/).
+   */
   private extractPublicId(imageUrl: string): string | null {
-    // Matches /<folder>/products/<publicId>.<ext> at end of URL
-    const escapedFolder = this.folder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\/${escapedFolder}\\/products\\/([^./]+)\\.\\w+$`);
+    // Match /<rootFolder>/<subfolder>/<publicId>.<ext> at the end of the URL
+    const escapedRoot = this.rootFolder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(
+      `\\/(${escapedRoot}\\/[^/]+\\/[^./]+)\\.\\w+$`,
+    );
     const match = imageUrl.match(regex);
-    return match ? `${this.folder}/products/${match[1]}` : null;
+    return match ? match[1] : null;
   }
 }
