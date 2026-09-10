@@ -17,6 +17,7 @@ import { MailModule } from './mail/mail.module';
 import { OrdersModule } from './orders/orders.module';
 import { CustomersModule } from './customers/customers.module';
 import { ShippingPartnersModule } from './shipping-partners/shipping-partners.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ShippingPartnersModule } from './shipping-partners/shipping-partners.mo
     OrdersModule,
     CustomersModule,
     ShippingPartnersModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [
