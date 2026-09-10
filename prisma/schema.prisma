@@ -59,6 +59,30 @@ model Customer {
 
   refreshTokens CustomerRefreshToken[]
   orders        Order[]
+  addresses     CustomerAddress[]
+}
+
+model CustomerAddress {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  label      String?  // e.g. "Home", "Work", "Other"
+  fullName   String
+  phone      String?
+  street     String
+  city       String
+  state      String
+  postalCode String
+  country    String   @default("Pakistan")
+  isDefault  Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders     Order[]
+
+  @@index([customerId])
 }
 
 model CustomerRefreshToken {
@@ -144,7 +168,12 @@ model Order {
   status            OrderStatus      @default(PENDING)
   totalCents        Int
 
-  // Shipping details
+  // Shipping address — linked saved address + immutable snapshot at order time
+  shippingAddressId       String?
+  shippingAddress         CustomerAddress? @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  shippingAddressSnapshot String?          // JSON snapshot of address at time of order
+
+  // Logistics
   shippingPartnerId String?
   shippingPartner   ShippingPartner? @relation(fields: [shippingPartnerId], references: [id], onDelete: SetNull)
   trackingId        String?

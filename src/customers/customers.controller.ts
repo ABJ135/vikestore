@@ -14,6 +14,7 @@ import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CreateAddressDto } from './dto/create-address.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('customers')
@@ -34,6 +35,43 @@ export class CustomersController {
   updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
     const customerId = req.user.id || req.user.sub;
     return this.customersService.updateProfile(customerId, dto);
+  }
+
+  // -- Saved Addresses --
+
+  @Get('me/addresses')
+  getMyAddresses(@Req() req: any) {
+    const customerId = req.user.id || req.user.sub;
+    return this.customersService.getAddresses(customerId);
+  }
+
+  @Post('me/addresses')
+  @HttpCode(HttpStatus.CREATED)
+  addMyAddress(@Req() req: any, @Body() dto: CreateAddressDto) {
+    const customerId = req.user.id || req.user.sub;
+    return this.customersService.addAddress(customerId, dto);
+  }
+
+  @Patch('me/addresses/:id')
+  updateMyAddress(
+    @Req() req: any,
+    @Param('id') addressId: string,
+    @Body() dto: CreateAddressDto,
+  ) {
+    const customerId = req.user.id || req.user.sub;
+    return this.customersService.updateAddress(customerId, addressId, dto);
+  }
+
+  @Delete('me/addresses/:id')
+  deleteMyAddress(@Req() req: any, @Param('id') addressId: string) {
+    const customerId = req.user.id || req.user.sub;
+    return this.customersService.deleteAddress(customerId, addressId);
+  }
+
+  @Patch('me/addresses/:id/set-default')
+  setDefaultAddress(@Req() req: any, @Param('id') addressId: string) {
+    const customerId = req.user.id || req.user.sub;
+    return this.customersService.setDefaultAddress(customerId, addressId);
   }
 
   // -------------------------------------------------------------

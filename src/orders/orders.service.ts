@@ -17,6 +17,18 @@ export class OrdersService {
       throw new BadRequestException('Order must contain at least one item');
     }
 
+    // Validate shippingAddressId belongs to this customer
+    let addressSnapshot: string | null = null;
+    if (dto.shippingAddressId) {
+      const address = await this.prisma.customerAddress.findFirst({
+        where: { id: dto.shippingAddressId, customerId },
+      });
+      if (!address) {
+        throw new BadRequestException('Shipping address not found or does not belong to you');
+      }
+      addressSnapshot = JSON.stringify(address);
+    }
+
     // Pre-validate all products before entering the transaction
     const products = await Promise.all(
       dto.items.map(async (item) => {
@@ -59,17 +71,22 @@ export class OrdersService {
           customerId,
           totalCents,
           status: OrderStatus.PENDING,
+          ...(dto.shippingAddressId && { shippingAddressId: dto.shippingAddressId }),
+          ...(addressSnapshot && { shippingAddressSnapshot: addressSnapshot }),
           items: {
             create: orderItemsData,
           },
         },
         include: {
           customer: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, phone: true },
           },
+          shippingAddress: true,
           items: {
             include: {
-              product: true,
+              product: {
+                include: { images: true },
+              },
             },
           },
         },
@@ -107,11 +124,16 @@ export class OrdersService {
     const orders = await this.prisma.order.findMany({
       include: {
         customer: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, phone: true },
         },
+        shippingAddress: true,
         shippingPartner: true,
         items: {
-          include: { product: true },
+          include: {
+            product: {
+              include: { images: true },
+            },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -124,9 +146,14 @@ export class OrdersService {
     const orders = await this.prisma.order.findMany({
       where: { customerId },
       include: {
+        shippingAddress: true,
         shippingPartner: true,
         items: {
-          include: { product: true },
+          include: {
+            product: {
+              include: { images: true },
+            },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -140,11 +167,16 @@ export class OrdersService {
       where: { id },
       include: {
         customer: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, phone: true, createdAt: true },
         },
+        shippingAddress: true,
         shippingPartner: true,
         items: {
-          include: { product: true },
+          include: {
+            product: {
+              include: { images: true },
+            },
+          },
         },
       },
     });
@@ -199,11 +231,16 @@ export class OrdersService {
       data: updateData,
       include: {
         customer: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, phone: true },
         },
+        shippingAddress: true,
         shippingPartner: true,
         items: {
-          include: { product: true },
+          include: {
+            product: {
+              include: { images: true },
+            },
+          },
         },
       },
     });
