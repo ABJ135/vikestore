@@ -18,6 +18,8 @@ import { OrdersModule } from './orders/orders.module';
 import { CustomersModule } from './customers/customers.module';
 import { ShippingPartnersModule } from './shipping-partners/shipping-partners.module';
 import { SettingsModule } from './settings/settings.module';
+import { HealthController } from './health/health.controller';
+import { DbKeepAliveService } from './health/db-keep-alive.service';
 
 @Module({
   imports: [
@@ -33,13 +35,14 @@ import { SettingsModule } from './settings/settings.module';
     ShippingPartnersModule,
     SettingsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    DbKeepAliveService
   ],
 })
 export class AppModule implements NestModule {
