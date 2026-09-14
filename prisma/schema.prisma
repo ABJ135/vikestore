@@ -203,7 +203,7 @@ model StoreSetting {
   id           String   @id @default(uuid())
   storeName    String   @default("My Store")
   supportEmail String?
-  currency     String   @default("USD")
+  currency     String   @default("PKR")
   logoUrl      String?
   updatedAt    DateTime @updatedAt
 }
